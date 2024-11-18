@@ -658,15 +658,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{ get; set; }
 		
 		[NinjaScriptProperty]
-		[Range(0, int.MaxValue)]
+		[Range(.001, 1.0)]
 		[Display(Name="Moneyball Exit Upper Threshold", Order=8, GroupName="3. Trade Parameters")]
-		public int exit_mb_uThreshold
+		public double exit_mb_uThreshold
 		{ get; set; }
 		
 		[NinjaScriptProperty]
-		[Range(0, int.MaxValue)]
+		[Range(-1.0, -.001)]
 		[Display(Name="Moneyball Exit Lower Threshold", Order=9, GroupName="3. Trade Parameters")]
-		public int exit_mb_lThreshold
+		public double exit_mb_lThreshold
 		{ get; set; }
 		
 		[NinjaScriptProperty]
