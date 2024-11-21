@@ -161,11 +161,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 			// Test code
 			
-			if (GetAtmStrategyMarketPosition(longAtmId) != Cbi.MarketPosition.Flat || GetAtmStrategyMarketPosition(shortAtmId) != Cbi.MarketPosition.Flat)
+			if (isShortAtmStrategyCreated == true || isLongAtmStrategyCreated == true)
 			{
 				entryDelayCounter = entryDelayInput;
 			}
-			else if(GetAtmStrategyMarketPosition(longAtmId) != Cbi.MarketPosition.Flat && GetAtmStrategyMarketPosition(shortAtmId) == Cbi.MarketPosition.Flat && entryDelayCounter > 0)
+			else if(isShortAtmStrategyCreated == false && isLongAtmStrategyCreated == false && entryDelayCounter > 0)
 			{
 				entryDelayCounter --;
 			}
