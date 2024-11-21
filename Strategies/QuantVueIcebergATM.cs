@@ -101,6 +101,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				MACDRestrict = false;
 				entryDelayInput = 10;
 				MACDUse = true;
+				okToTrade = true;
 				
 			}
 			else if (State == State.Configure)
@@ -307,7 +308,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				}
 			}
 			
-			Draw.TextFixed(this, "Label1", " Delay Countdown: " + entryDelayCounter + " Current PnL: $" + Math.Round(currentPnL, 2) + " Max Profit: $" + Math.Round(maxProfitLevel, 2) + " Trailing Loss Hit? " + trailingLossHit,
+			Draw.TextFixed(this, "Label1", " Delay Countdown: " + entryDelayCounter + " Current PnL: $" + Math.Round(currentPnL, 2) + " Max Profit: $" + Math.Round(maxProfitLevel, 2) + " Trailing Loss Hit? " + trailingLossHit + " Ok to trade? " + okToTrade,
         TextPosition.BottomLeft, Brushes.Black, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 12, Bold = true },
         Brushes.Transparent, Brushes.DimGray, 100);
 			
