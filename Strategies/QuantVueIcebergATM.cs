@@ -38,6 +38,9 @@ namespace NinjaTrader.NinjaScript.Strategies
 		private int 									priorTradesCount 			= 0;
 		private double 									priorTradesCumProfit		= 0;
 		private double 									currentPnL;
+		private bool									okToTrade;
+		private double									maxProfitLevel;
+		private bool 									trailingLossHit;
 		private	CustomEnumNamespaceIceATM.TimeMode		TimeModeSelect				= CustomEnumNamespaceIceATM.TimeMode.Restricted;
 		private DateTime 								startTime 					= DateTime.Parse("11:00:00", System.Globalization.CultureInfo.InvariantCulture);
 		private DateTime		 						endTime 					= DateTime.Parse("13:00:00", System.Globalization.CultureInfo.InvariantCulture);
@@ -125,6 +128,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 		}
 
+		#region Program Variables //variables that are handled programatically
+			
+		double currentDayProfit;		
+		double previousRunningProfit;	
+		bool eodUpkeep = true; //flag used to ensure that end of day upkeep only happens once per day
+			
+		#endregion
+		
 		protected override void OnBarUpdate()
 		{
 			// HELP DOCUMENTATION REFERENCE: Please see the Help Guide section "Using ATM Strategies"
@@ -134,7 +145,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 				return;			
 			
 			if (Bars.IsFirstBarOfSession)
+			{
 				currentPnL = 0;
+				maxProfitLevel = 0;
+				trailingLossHit = false;
+				okToTrade = true;
+				previousRunningProfit = SystemPerformance.AllTrades.TradesPerformance.Currency.CumProfit;
+			}
 			
 			if (BarsInProgress != 0) 
 				return;
@@ -142,6 +159,18 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (CurrentBars[0] < 1)
 				return;
 			
+			// Test code
+			
+			if (GetAtmStrategyMarketPosition(longAtmId) != Cbi.MarketPosition.Flat || GetAtmStrategyMarketPosition(shortAtmId) != Cbi.MarketPosition.Flat)
+			{
+				entryDelayCounter = entryDelayInput;
+			}
+			else if(GetAtmStrategyMarketPosition(longAtmId) != Cbi.MarketPosition.Flat && GetAtmStrategyMarketPosition(shortAtmId) == Cbi.MarketPosition.Flat && entryDelayCounter > 0)
+			{
+				entryDelayCounter --;
+			}
+			
+			/*
 			if (Position.MarketPosition != MarketPosition.Flat)
 			{
 				entryDelayCounter = entryDelayInput;
@@ -150,6 +179,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			{
 				entryDelayCounter --;
 			}
+			*/
 			
 			if (CrossAbove(MACD1.Default, MACD1.Avg, 1) || CrossBelow(MACD1.Default, MACD1.Avg, 1))
 			{
@@ -195,12 +225,36 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			// End check.
 			
+			/* -------------------------------------
+			
+				Daily PnL Block - Before Entries
+			
+			--------------------------------------*/
+			
+			if (((Position.MarketPosition == MarketPosition.Long) || (Position.MarketPosition == MarketPosition.Short)) 
+				&& trailingLossHit == true
+				|| (((currentPnL + Position.GetUnrealizedProfitLoss(PerformanceUnit.Currency, Close[0])) <= -maxDailyLossAmount) && maxDailyLoss == true)
+				|| (((currentPnL + Position.GetUnrealizedProfitLoss(PerformanceUnit.Currency, Close[0])) >= maxDailyProfitAmount) && maxDailyProfit == true)) ///If unrealized goes under maxDailyLossAmount 'OR' Above maxDailyProfitAmount    
+			{
+				if(shortAtmId.Length != 0 && isShortAtmStrategyCreated)
+						{
+							AtmStrategyClose(shortAtmId);
+							isShortAtmStrategyCreated = false;
+						}
+				if(longAtmId.Length != 0  && isLongAtmStrategyCreated)
+						{
+							AtmStrategyClose(longAtmId);
+							isLongAtmStrategyCreated = false;
+						}
+				okToTrade = false;
+			}
+			
 			// Entries.
 			// **** YOU MUST HAVE AN ATM STRATEGY TEMPLATE NAMED 'IcebergATM' CREATED IN NINJATRADER (SUPERDOM FOR EXAMPLE) FOR THIS TO WORK ****
 			// Enter long if Close is greater than Open.
 			if (((ToTime(Time[0]) >= ToTime(startTime) && ToTime(Time[0]) <= ToTime(endTime)) || TimeModeSelect == CustomEnumNamespaceIceATM.TimeMode.Unrestricted) && Position.MarketPosition == MarketPosition.Flat && entryDelayCounter == 0)
 			{
-				if ((currentPnL <= maxDailyProfitAmount || maxDailyProfit == false) || (currentPnL >= -maxDailyLossAmount || maxDailyLoss == false))
+				if (((currentPnL <= maxDailyProfitAmount || maxDailyProfit == false) || (currentPnL >= -maxDailyLossAmount || maxDailyLoss == false)) && okToTrade == true && trailingLossHit == false)
 				{
 			
 					//if(CrossAbove(Moneyball1.VBar, mb_uThreshold, LookbackPeriod) && CrossAbove(Qcloud1.V1, Qcloud1.V6, LookbackPeriod) && CrossAbove(Qwave1.K1, Qwave1.VHigh, LookbackPeriod) && CrossAbove(MACD1.Default, MACD1.Avg, MACDLookback) && MACD1.Default[0] > mb_uThreshold && Close[0] > SMA(Close, userSMA)[0])
@@ -252,7 +306,45 @@ namespace NinjaTrader.NinjaScript.Strategies
 					// End entries.
 				}
 			}
+			
+			Draw.TextFixed(this, "Label1", " Delay Countdown: " + entryDelayCounter + " Current PnL: $" + Math.Round(currentPnL, 2) + " Max Profit: $" + Math.Round(maxProfitLevel, 2) + " Trailing Loss Hit? " + trailingLossHit,
+        TextPosition.BottomLeft, Brushes.Black, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 12, Bold = true },
+        Brushes.Transparent, Brushes.DimGray, 100);
+			
+			/* -------------------------------------
+			
+				Daily PnL Block - After Entries
+			
+			--------------------------------------*/
+			
+			
+			currentPnL = SystemPerformance.AllTrades.TradesPerformance.Currency.CumProfit - previousRunningProfit; // update daily profit
+			
+			// Store daily max profit level
+			if (currentPnL > maxProfitLevel)
+				{
+					maxProfitLevel = currentPnL;
+				}
+				
+			// Check if trailing daily loss has hit
+			if ((maxProfitLevel > trailingLossAmount || maxDailyLoss == false) && (currentPnL < (maxProfitLevel - trailingLossAmount)) && useTrailingLoss == true && trailingLossAmount > 0)
+				{
+					trailingLossHit = true;
+				}
+			
+			// Check if Daily PT or SL has been hit
+			if ((currentPnL >= maxDailyProfitAmount && maxDailyProfit == true) || (currentPnL <= -maxDailyLossAmount && maxDailyLoss == true))
+				{
+					okToTrade = false;
+					Print("daily limit hit, no new orders" + Time[0].ToString());
+				}
+				
+				
 		}
+		
+		
+		
+		/* Old PnL
 		
 		protected override void OnPositionUpdate(Position position, double averagePrice, int quantity, MarketPosition marketPosition)
 		{
@@ -278,6 +370,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				}
 			}
 		}
+		
+		*/
 		
 		#region Properties
 		
@@ -347,54 +441,65 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{ get; set; }
 		
 		[NinjaScriptProperty]
+		[Display(Name="Use Trailing Daily SL?", Order=7, GroupName="Trade Parameters")]
+		public bool useTrailingLoss
+		{ get; set; }
+		
+		[NinjaScriptProperty]
+		[Range(0, int.MaxValue)]
+		[Display(Name="Trailing Daily Stoploss (Currency)", Order=8, GroupName="Trade Parameters")]
+		public int trailingLossAmount
+		{ get; set; }
+		
+		[NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name="Lookback Period", Order=7, GroupName="Trade Parameters")]
+        [Display(Name="Lookback Period", Order=9, GroupName="Trade Parameters")]
         public int LookbackPeriod 
 		{ get; set; }
 		
 		[NinjaScriptProperty]
-		[Display(Name="Use MACD Condition?", Order=8, GroupName="Trade Parameters")]
+		[Display(Name="Use MACD Condition?", Order=10, GroupName="Trade Parameters")]
 		public bool MACDUse
 		{ get; set; }
 		
 		[NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name="MACD Lookback Period", Order=9, GroupName="Trade Parameters")]
+        [Display(Name="MACD Lookback Period", Order=11, GroupName="Trade Parameters")]
         public int MACDLookback 
 		{ get; set; }
 		
 		[NinjaScriptProperty]
-		[Display(Name="Restrict MACD?", Order=10, GroupName="Trade Parameters")]
+		[Display(Name="Restrict MACD?", Order=12, GroupName="Trade Parameters")]
 		public bool MACDRestrict
 		{ get; set; }
 		
 		[NinjaScriptProperty]
         [Range(1, double.MaxValue)]
-        [Display(Name="MACD Limit", Order=11, GroupName="Trade Parameters")]
+        [Display(Name="MACD Limit", Order=13, GroupName="Trade Parameters")]
         public double MACDLimit 
 		{ get; set; }
 						
 		[NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name="Fast Period", Order=12, GroupName="Trade Parameters")]
+        [Display(Name="Fast Period", Order=14, GroupName="Trade Parameters")]
         public int FastPeriod 
 		{ get; set; }
 
 		[NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name="Slow Period", Order=13, GroupName="Trade Parameters")]
+        [Display(Name="Slow Period", Order=15, GroupName="Trade Parameters")]
         public int SlowPeriod 
 		{ get; set; }
 
 		[NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name="Signal Period", Order=14, GroupName="Trade Parameters")]
+        [Display(Name="Signal Period", Order=16, GroupName="Trade Parameters")]
         public int SignalPeriod 
 		{ get; set; }
 		
 		[NinjaScriptProperty]
         [Range(1, int.MaxValue)]
-        [Display(Name="SMA Period", Order=15, GroupName="Trade Parameters")]
+        [Display(Name="SMA Period", Order=17, GroupName="Trade Parameters")]
         public int userSMA 
 		{ get; set; }
 		
