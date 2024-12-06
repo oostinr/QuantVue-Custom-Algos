@@ -26,16 +26,16 @@ using NinjaTrader.NinjaScript.DrawingTools;
 namespace NinjaTrader.NinjaScript.Strategies
 {
 	
-	public class ChopShop : Strategy
+	public class ChopChop : Strategy
 	{
 		private Bollinger bb;
         private ChoppinessIndex choppiness;
 		
 		private bool isBreakevenSet = false;
-		private CustomEnumNamespaceIce.TimeMode TimeModeSelect = CustomEnumNamespaceIce.TimeMode.Restricted;
+		private CustomEnumNamespaceChopChop.TimeMode TimeModeSelect = CustomEnumNamespaceChopChop.TimeMode.Restricted;
 		private DateTime startTime = DateTime.Parse("09:35:00", System.Globalization.CultureInfo.InvariantCulture);
 		private DateTime endTime = DateTime.Parse("14:00:00", System.Globalization.CultureInfo.InvariantCulture);
-		private CustomEnumNamespaceIce.StopMode StopModeSelect = CustomEnumNamespaceIce.StopMode.BEOnly;
+		private CustomEnumNamespaceChopChop.StopMode StopModeSelect = CustomEnumNamespaceChopChop.StopMode.BEOnly;
 		private int tickCount = 1;
 		private int priorTradesCount = 0;
 		private double priorTradesCumProfit = 0;
@@ -46,7 +46,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (State == State.SetDefaults)
 			{
 				Description									= @"Enter the description for your new custom Strategy here.";
-				Name										= "ChopShop";
+				Name										= "ChopChop";
 				Calculate									= Calculate.OnBarClose;
 				EntriesPerDirection							= 1;
 				EntryHandling								= EntryHandling.AllEntries;
@@ -113,7 +113,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				currentPnL = 0;
 			}
 
-			if ((ToTime(Time[0]) >= ToTime(startTime) && ToTime(Time[0]) <= ToTime(endTime)) || TimeModeSelect == CustomEnumNamespaceIce.TimeMode.Unrestricted && Position.MarketPosition == MarketPosition.Flat)
+			if ((ToTime(Time[0]) >= ToTime(startTime) && ToTime(Time[0]) <= ToTime(endTime)) || TimeModeSelect == CustomEnumNamespaceChopChop.TimeMode.Unrestricted && Position.MarketPosition == MarketPosition.Flat)
 			{
 				if ((currentPnL <= maxDailyProfitAmount || maxDailyProfit == false) || (currentPnL >= -maxDailyLossAmount || maxDailyLoss == false))
 				{
@@ -158,7 +158,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 			// BE Only Stop Loss Mode //
 
-			if (BreakevenProfit > 0 && StopModeSelect == CustomEnumNamespaceIce.StopMode.BEOnly || StopModeSelect == CustomEnumNamespaceIce.StopMode.StepSL)
+			if (BreakevenProfit > 0 && StopModeSelect == CustomEnumNamespaceChopChop.StopMode.BEOnly || StopModeSelect == CustomEnumNamespaceChopChop.StopMode.StepSL)
 			{
 				if (Position.MarketPosition != MarketPosition.Flat && (Position.GetUnrealizedProfitLoss(PerformanceUnit.Currency, Close[0]) >= BreakevenProfit) && !isBreakevenSet)
 				{
@@ -179,7 +179,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 			// Step Stop Loss Mode //
 
-			if (Position.MarketPosition != MarketPosition.Flat && StopModeSelect == CustomEnumNamespaceIce.StopMode.StepSL && isBreakevenSet == true)
+			if (Position.MarketPosition != MarketPosition.Flat && StopModeSelect == CustomEnumNamespaceChopChop.StopMode.StepSL && isBreakevenSet == true)
 			{
 
 				if (Position.MarketPosition == MarketPosition.Long)
@@ -232,7 +232,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		[NinjaScriptProperty]
 		[Display(ResourceType = typeof(Custom.Resource), Name = "Trading Hour Restriction", GroupName = "Time Parameters", Order = 0)]
-		public CustomEnumNamespaceIce.TimeMode TIMEMODESelect
+		public CustomEnumNamespaceChopChop.TimeMode TIMEMODESelect
 		{
 			get { return TimeModeSelect; }
 			set { TimeModeSelect = value; }
@@ -328,7 +328,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 		[NinjaScriptProperty]
 		[Display(ResourceType = typeof(Custom.Resource), Name = "Stoploss Mode Select", GroupName = "SL Parameters", Order = 0)]
-		public CustomEnumNamespaceIce.StopMode STOPMODESelect
+		public CustomEnumNamespaceChopChop.StopMode STOPMODESelect
 		{
 			get { return StopModeSelect; }
 			set { StopModeSelect = value; }
@@ -350,7 +350,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 }
 
 
-namespace CustomEnumNamespaceChopShop
+namespace CustomEnumNamespaceChopChop
 {
 	public enum TimeMode
 	{
