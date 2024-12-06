@@ -54,6 +54,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		private bool								gotoBEShort;
 		private bool								longEntrySet;
 		private bool								shortEntrySet;
+		private bool								mbAboveExit;
 
 
 		protected override void OnStateChange()
@@ -176,6 +177,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 				grid1Flip = 2;
 			}
 			
+			if(Position.MarketPosition == MarketPosition.Long && Moneyball1.VBar[0] > exit_mb_uThreshold)
+			{
+				mbAboveExit = true;
+			}
+			else if(Position.MarketPosition == MarketPosition.Short && Moneyball1.VBar[0] < exit_mb_lThreshold)
+			{
+				mbAboveExit = true;
+			}
+			
 			if (iGRID_EVO1.HA2Close[0] < iGRID_EVO1.HA2Open[0])
 			{
 				bullbearHA2 = 2;
@@ -197,11 +207,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 				}
 			}
 			
-			if (Position.MarketPosition == MarketPosition.Long && (bullbearHA2 == 2 || useExitHA2 == false) && (Moneyball1.VBar[0] < exit_mb_uThreshold || useMoneyballExit == false))
+			if (Position.MarketPosition == MarketPosition.Long && (bullbearHA2 == 2 || useExitHA2 == false) && ((Moneyball1.VBar[0] < exit_mb_uThreshold && mbAboveExit == true) || useMoneyballExit == false))
 			{
 				ExitLong("GoLong");
 			}
-			else if (Position.MarketPosition == MarketPosition.Short && (bullbearHA2 == 1 || useExitHA2 == false) && (Moneyball1.VBar[0] > exit_mb_lThreshold || useMoneyballExit == false))
+			else if (Position.MarketPosition == MarketPosition.Short && (bullbearHA2 == 1 || useExitHA2 == false) && ((Moneyball1.VBar[0] > exit_mb_lThreshold && mbAboveExit == true) || useMoneyballExit == false))
 			{
 				ExitShort("GoShort");
 			}
@@ -232,6 +242,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				{
 					EnterLong(DefaultQuantity, "GoLong");
 					gotoBEShort = false;
+					mbAboveExit = false;
 					if(useExitTarget == true)
 					{
 						SetProfitTarget("GoLong", CalculationMode.Ticks, exitTargetTicks);
@@ -244,6 +255,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				{
 					EnterShort(DefaultQuantity, "GoShort");
 					gotoBELong = false;
+					mbAboveExit = false;
 					if(useExitTarget == true)
 					{
 						SetProfitTarget("GoShort", CalculationMode.Ticks, exitTargetTicks);
@@ -658,13 +670,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 		{ get; set; }
 		
 		[NinjaScriptProperty]
-		[Range(.001, 1.0)]
+		[Range(0, 1.0)]
 		[Display(Name="Moneyball Exit Upper Threshold", Order=8, GroupName="3. Trade Parameters")]
 		public double exit_mb_uThreshold
 		{ get; set; }
 		
 		[NinjaScriptProperty]
-		[Range(-1.0, -.001)]
+		[Range(-1.0, 0)]
 		[Display(Name="Moneyball Exit Lower Threshold", Order=9, GroupName="3. Trade Parameters")]
 		public double exit_mb_lThreshold
 		{ get; set; }
