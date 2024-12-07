@@ -28,6 +28,10 @@ namespace NinjaTrader.NinjaScript.Strategies
 	public class QuantVueSqueeze : Strategy
 	{
 		private NinjaTrader.NinjaScript.Indicators.AUN_Indi.SqueezeMomentumIndicator SqueezeMomentumIndicator1;
+		private DateTime 								startTime 			= DateTime.Parse("9:00:00", System.Globalization.CultureInfo.InvariantCulture);
+		private DateTime		 						endTime 			= DateTime.Parse("13:00:00", System.Globalization.CultureInfo.InvariantCulture);
+		private DateTime 								lunchstartTime 		= DateTime.Parse("11:00:00", System.Globalization.CultureInfo.InvariantCulture);
+		private DateTime		 						lunchendTime 		= DateTime.Parse("12:30:00", System.Globalization.CultureInfo.InvariantCulture);
 
 		protected override void OnStateChange()
 		{
@@ -77,10 +81,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 				return;
 
 			 // Set 1
-			if ((SqueezeMomentumIndicator1.SqueezeDef[0] > SqueezeMomentumIndicator1.SqueezeDef[1])
+			if (((SqueezeMomentumIndicator1.SqueezeDef[0] > SqueezeMomentumIndicator1.SqueezeDef[1])
 				 && SqueezeMomentumIndicator1.SqueezeDef[0] > 0
 				 && (Close[0] > Open[0])
 				 && (Close[1] < Open[1]))
+				 && ((ToTime(Time[0]) >= ToTime(startTime) && ToTime(Time[0]) <= ToTime(endTime)) || restrictTime == false)
+				 && ((ToTime(Time[0]) <= ToTime(lunchstartTime) || ToTime(Time[0]) >= ToTime(lunchendTime)) || restrictLunch == false)
+				)
 			{
 				EnterLong(DefaultQuantity, "GoLong");
 				SetProfitTarget("GoLong", CalculationMode.Currency, TP);
@@ -88,10 +95,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 			}
 			
 			 // Set 2
-			if ((SqueezeMomentumIndicator1.SqueezeDef[0] < SqueezeMomentumIndicator1.SqueezeDef[1])
+			if (((SqueezeMomentumIndicator1.SqueezeDef[0] < SqueezeMomentumIndicator1.SqueezeDef[1])
 				 && SqueezeMomentumIndicator1.SqueezeDef[0] < 0
 				 && (Close[0] < Open[0])
 				 && (Close[1] > Open[1]))
+				 && ((ToTime(Time[0]) >= ToTime(startTime) && ToTime(Time[0]) <= ToTime(endTime)) || restrictTime == false)
+				 && ((ToTime(Time[0]) <= ToTime(lunchstartTime) || ToTime(Time[0]) >= ToTime(lunchendTime)) || restrictLunch == false)
+				)
 			{
 				EnterShort(DefaultQuantity, "GoShort");
 				SetProfitTarget("GoShort", CalculationMode.Currency, TP);
@@ -102,20 +112,66 @@ namespace NinjaTrader.NinjaScript.Strategies
 		
 		#region Properties
 		[NinjaScriptProperty]
+		[Display(Name="Restrict Trading Time?", Order=3, GroupName="1. Time Parameters")]
+		public bool restrictTime
+		{ get; set; }
+		
+		[PropertyEditor("NinjaTrader.Gui.Tools.TimeEditorKey")]
+        [NinjaScriptProperty]
+        [Display(Name = "Time Range-Start", GroupName = "1. Time Parameters", Order = 1)]
+        public DateTime StartTime 
+		{
+			get { return startTime; }
+			set { startTime = value; }
+		}
+		
+		[PropertyEditor("NinjaTrader.Gui.Tools.TimeEditorKey")]
+       	[NinjaScriptProperty]
+       	[Display(Name = "Time Range-End", GroupName = "1. Time Parameters", Order = 2)]
+        public DateTime EndTime
+		{
+			get { return endTime; }
+			set { endTime = value; }
+		}
+		
+		[NinjaScriptProperty]
+		[Display(Name="Restrict Lunch Trading?", Order=3, GroupName="1. Time Parameters")]
+		public bool restrictLunch
+		{ get; set; }
+		
+		[PropertyEditor("NinjaTrader.Gui.Tools.TimeEditorKey")]
+        [NinjaScriptProperty]
+        [Display(Name = "Lunch Range-Start", GroupName = "1. Time Parameters", Order = 4)]
+        public DateTime lunchStartTime 
+		{
+			get { return lunchstartTime; }
+			set { lunchstartTime = value; }
+		}
+		
+		[PropertyEditor("NinjaTrader.Gui.Tools.TimeEditorKey")]
+       	[NinjaScriptProperty]
+       	[Display(Name = "Lunch Range-End", GroupName = "1. Time Parameters", Order = 5)]
+        public DateTime lunchEndTime
+		{
+			get { return lunchendTime; }
+			set { lunchendTime = value; }
+		}
+		
+		[NinjaScriptProperty]
 		[Range(1, int.MaxValue)]
-		[Display(Name="TP", Order=1, GroupName="Parameters")]
+		[Display(Name="TP", Order=1, GroupName="2. Order Parameters")]
 		public int TP
 		{ get; set; }
 
 		[NinjaScriptProperty]
 		[Range(1, int.MaxValue)]
-		[Display(Name="SL", Order=2, GroupName="Parameters")]
+		[Display(Name="SL", Order=2, GroupName="2. Order Parameters")]
 		public int SL
 		{ get; set; }
 
 		[NinjaScriptProperty]
 		[Range(1, int.MaxValue)]
-		[Display(Name="DQ", Order=3, GroupName="Parameters")]
+		[Display(Name="DQ", Order=3, GroupName="2. Order Parameters")]
 		public int DQ
 		{ get; set; }
 		#endregion
