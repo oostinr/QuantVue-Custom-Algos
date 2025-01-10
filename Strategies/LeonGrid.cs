@@ -77,6 +77,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				private bool								pauseTrades						=false;
 				private bool								gotoBE;
 				private double								maxDrawdown;
+				private bool								dailyProfitHit;
+				private bool								dailyLossHit;
 
 				// In order to trim the indicator's label on the chart we need to override the ToString() method.
 				public override string DisplayName
@@ -229,6 +231,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 						}
 						previousRunningProfit = SystemPerformance.AllTrades.TradesPerformance.Currency.CumProfit;
 						maxDrawdown = 0;
+						dailyProfitHit = false;
+						dailyLossHit = false;
 					}
 			
 					if (BarsInProgress != 0) 
@@ -312,12 +316,22 @@ namespace NinjaTrader.NinjaScript.Strategies
 					
 					if (((Position.MarketPosition == MarketPosition.Long) || (Position.MarketPosition == MarketPosition.Short)) 
 						&& trailingLossHit == true
-						|| (((currentPnL + Position.GetUnrealizedProfitLoss(PerformanceUnit.Currency, Close[0])) <= -maxDailyLossAmount) && maxDailyLoss == true)
+						|| (((currentPnL + Position.GetUnrealizedProfitLoss(PerformanceUnit.Currency, Close[0])) <= -maxDailyLossAmount) && maxDailyLoss == true)) ///If unrealized goes under maxDailyLossAmount 'OR' Above maxDailyProfitAmount    
+					{
+						ExitLong();
+						ExitShort();
+						okToTrade = false;
+						dailyLossHit = true;
+					}
+					
+					if (((Position.MarketPosition == MarketPosition.Long) || (Position.MarketPosition == MarketPosition.Short)) 
+						&& trailingLossHit == true
 						|| (((currentPnL + Position.GetUnrealizedProfitLoss(PerformanceUnit.Currency, Close[0])) >= maxDailyProfitAmount) && maxDailyProfit == true)) ///If unrealized goes under maxDailyLossAmount 'OR' Above maxDailyProfitAmount    
 					{
 						ExitLong();
 						ExitShort();
 						okToTrade = false;
+						dailyProfitHit = true;
 					}
 					
 					//Stops and Profit Targets
@@ -415,46 +429,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				}
 			}
 			
-			if(showDebug == true)
-			{
-				Draw.TextFixed(this, "Label1", "Add Countdown: " + addCountdown + " MA Countdown: " + maOffsetCountdown + " Delay Countdown: " + entryDelayCounter + " Current PnL: $" + Math.Round(currentPnL, 2) + " Max Profit: $" + Math.Round(maxProfitLevel, 2) + " Trailing Loss Hit? " + trailingLossHit + " Longs Allowed = " + allowLongs + " Shorts Allowed = " + allowShorts + " Trades Paused = " + pauseTrades + " BE = " + gotoBE,
-       			TextPosition.BottomLeft, Brushes.Black, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 12, Bold = true }, Brushes.Transparent, Brushes.DimGray, 100);
-			}
-			else if(showStatistics == true)
-			{
-				Draw.TextFixed(this, "Label1", "Current PnL: $" + Math.Round(currentPnL, 2) + " | Max Profit: $" + Math.Round(maxProfitLevel, 2) + " | Max Drawdown: $" + Math.Round(maxDrawdown, 2) + " | Trailing Loss Hit? " + trailingLossHit + " | Ok to Trade? " + okToTrade,
-        		TextPosition.BottomLeft, Brushes.Black, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 12, Bold = true }, Brushes.Transparent, Brushes.DimGray, 100);
-			}
-			
-			currentTime = DateTime.Now;
-			
-			if((ToTime(currentTime) <= ToTime(startTime)) && TimeModeSelect == CustomEnumNamespaceLeonGrid.TimeMode.Restricted)
-			{
-				Draw.TextFixed(this, "Label2", "Trading Session Starts at " + startTime.ToString("t"),
-				TextPosition.Center, Brushes.Red, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Red, Brushes.Black, 100);
-			}
-			else
-			{
-				RemoveDrawObject("Label2");
-			}
-			if((ToTime(currentTime) >= ToTime(endTime)) && TimeModeSelect == CustomEnumNamespaceLeonGrid.TimeMode.Restricted)
-			{
-				Draw.TextFixed(this, "Label3", "Trading Session Ended",
-				TextPosition.Center, Brushes.Red, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Red, Brushes.Black, 100);
-			}
-			else
-			{
-				RemoveDrawObject("Label3");
-			}
-			if ((ToTime(currentTime) >= ToTime(lunchstartTime) && ToTime(currentTime) <= ToTime(lunchendTime)) && restrictLunch == true)
-			{
-				Draw.TextFixed(this, "Label4", "Lunch Trading Pause, Resume at " + lunchendTime.ToString("t"),
-				TextPosition.Center, Brushes.Red, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Red, Brushes.Black, 100);
-			}
-			else
-			{
-				RemoveDrawObject("Label4");
-			}
+
 			
 			currentPnL = SystemPerformance.AllTrades.TradesPerformance.Currency.CumProfit - previousRunningProfit; // update daily profit
 			
@@ -476,11 +451,99 @@ namespace NinjaTrader.NinjaScript.Strategies
 				}
 			
 			// Check if Daily PT or SL has been hit
-			if ((currentPnL >= maxDailyProfitAmount && maxDailyProfit == true) || (currentPnL <= -maxDailyLossAmount && maxDailyLoss == true))
-				{
-					okToTrade = false;
-					Print("daily limit hit, no new orders" + Time[0].ToString());
-				}
+//			if ((currentPnL >= maxDailyProfitAmount && maxDailyProfit == true) || (currentPnL <= -maxDailyLossAmount && maxDailyLoss == true))
+//				{
+//					okToTrade = false;
+//					Print("daily limit hit, no new orders" + Time[0].ToString());
+//				}
+				
+			// Check if Daily PT has been hit
+			if ((currentPnL >= maxDailyProfitAmount && maxDailyProfit == true))
+			{
+				okToTrade = false;
+				Print("daily profit limit hit, no new orders" + Time[0].ToString());
+				dailyProfitHit = true;
+			}
+			
+			// Check if Daily SL has been hit
+			if ((currentPnL <= -maxDailyLossAmount && maxDailyLoss == true))
+			{
+				okToTrade = false;
+				Print("daily loss limit hit, no new orders" + Time[0].ToString());
+				dailyLossHit = true;
+			}
+			
+			
+			
+			/*------------------------------------------------
+					
+								Text Boxes
+					
+			------------------------------------------------*/
+			
+			if(showDebug == true)
+			{
+				Draw.TextFixed(this, "Label1", "Add Countdown: " + addCountdown + " MA Countdown: " + maOffsetCountdown + " Delay Countdown: " + entryDelayCounter + " Current PnL: $" + Math.Round(currentPnL, 2) + " Max Profit: $" + Math.Round(maxProfitLevel, 2) + " Trailing Loss Hit? " + trailingLossHit + " Longs Allowed = " + allowLongs + " Shorts Allowed = " + allowShorts + " Trades Paused = " + pauseTrades + " BE = " + gotoBE,
+       			TextPosition.BottomLeft, Brushes.Black, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 12, Bold = true }, Brushes.Transparent, Brushes.DimGray, 100);
+			}
+			else if(showStatistics == true)
+			{
+				Draw.TextFixed(this, "Label1", "Current PnL: $" + Math.Round(currentPnL, 2) + " | Max Profit: $" + Math.Round(maxProfitLevel, 2) + " | Max Drawdown: $" + Math.Round(maxDrawdown, 2) + " | Trailing Loss Hit? " + trailingLossHit + " | Ok to Trade? " + okToTrade,
+        		TextPosition.BottomLeft, Brushes.Black, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 12, Bold = true }, Brushes.Transparent, Brushes.DimGray, 100);
+			}
+			
+			currentTime = DateTime.Now;
+					
+			if((ToTime(currentTime) <= ToTime(startTime)) && TimeModeSelect == CustomEnumNamespaceLeonGrid.TimeMode.Restricted)
+			{
+				Draw.TextFixed(this, "Label2", "Trading Session Starts at " + startTime.ToString("t"),
+				TextPosition.Center, Brushes.Red, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Red, Brushes.Black, 100);
+			}
+			else
+			{
+				RemoveDrawObject("Label2");
+			}
+			
+			if((ToTime(currentTime) >= ToTime(endTime)) && TimeModeSelect == CustomEnumNamespaceLeonGrid.TimeMode.Restricted)
+			{
+				Draw.TextFixed(this, "Label3", "Trading Session Ended",
+				TextPosition.Center, Brushes.Red, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Red, Brushes.Black, 100);
+			}
+			else
+			{
+				RemoveDrawObject("Label3");
+			}
+			
+			if ((ToTime(currentTime) >= ToTime(lunchstartTime) && ToTime(currentTime) <= ToTime(lunchendTime)) && restrictLunch == true)
+			{
+				Draw.TextFixed(this, "Label4", "Lunch Trading Pause, Resume at " + lunchendTime.ToString("t"),
+				TextPosition.Center, Brushes.Red, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Red, Brushes.Black, 100);
+			}
+			else
+			{
+				RemoveDrawObject("Label4");
+			}
+			
+			if (dailyProfitHit == true && okToTrade == false)
+			{
+				Draw.TextFixed(this, "Label5", "Daily Profit Target Hit! :) Profit = $" + Math.Round(currentPnL, 2),
+				TextPosition.Center, Brushes.Green, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Green, Brushes.Black, 100);
+			}
+			else
+			{
+				RemoveDrawObject("Label5");
+			}
+			
+			if (dailyLossHit == true && okToTrade == false)
+			{
+				Draw.TextFixed(this, "Label6", "Daily Stop Loss Hit! :( Profit = -$" + Math.Abs(Math.Round(currentPnL, 2)),
+				TextPosition.Center, Brushes.Red, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Red, Brushes.Black, 100);
+			}
+			else
+			{
+				RemoveDrawObject("Label6");
+			}
+			
 		}
 				
 				
