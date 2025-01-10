@@ -79,6 +79,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 				private bool								pauseTrades						=false;
 				private bool								gotoBE;
 				private double								maxDrawdown;
+				private bool								dailyProfitHit;
+				private bool								dailyLossHit;
 
 		public override string DisplayName { get { return Name; } }
 
@@ -247,6 +249,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 						}
 						previousRunningProfit = SystemPerformance.AllTrades.TradesPerformance.Currency.CumProfit;
 						maxDrawdown = 0;
+						dailyProfitHit = false;
+						dailyLossHit = false;
 					}
 			
 					if (BarsInProgress != 0) 
@@ -332,12 +336,22 @@ namespace NinjaTrader.NinjaScript.Strategies
 					
 					if (((Position.MarketPosition == MarketPosition.Long) || (Position.MarketPosition == MarketPosition.Short)) 
 						&& trailingLossHit == true
-						|| (((currentPnL + Position.GetUnrealizedProfitLoss(PerformanceUnit.Currency, Close[0])) <= -maxDailyLossAmount) && maxDailyLoss == true)
+						|| (((currentPnL + Position.GetUnrealizedProfitLoss(PerformanceUnit.Currency, Close[0])) <= -maxDailyLossAmount) && maxDailyLoss == true)) ///If unrealized goes under maxDailyLossAmount 'OR' Above maxDailyProfitAmount    
+					{
+						ExitLong();
+						ExitShort();
+						okToTrade = false;
+						dailyLossHit = true;
+					}
+					
+					if (((Position.MarketPosition == MarketPosition.Long) || (Position.MarketPosition == MarketPosition.Short)) 
+						&& trailingLossHit == true
 						|| (((currentPnL + Position.GetUnrealizedProfitLoss(PerformanceUnit.Currency, Close[0])) >= maxDailyProfitAmount) && maxDailyProfit == true)) ///If unrealized goes under maxDailyLossAmount 'OR' Above maxDailyProfitAmount    
 					{
 						ExitLong();
 						ExitShort();
 						okToTrade = false;
+						dailyProfitHit = true;
 					}
 					
 					//Stops and Profit Targets
@@ -432,18 +446,48 @@ namespace NinjaTrader.NinjaScript.Strategies
 					// End entries.
 				}
 			}
+			
+			
+			
+			
+			currentPnL = SystemPerformance.AllTrades.TradesPerformance.Currency.CumProfit - previousRunningProfit; // update daily profit
+			
+			// Store daily max profit level
+			if (currentPnL > maxProfitLevel)
+				{
+					maxProfitLevel = currentPnL;
+				}
+				
+			if (currentPnL < maxDrawdown)
+				{
+					maxDrawdown = currentPnL;
+				}
+				
+			// Check if trailing daily loss has hit
+			if ((maxProfitLevel > trailingLossAmount || maxDailyLoss == false) && (currentPnL < (maxProfitLevel - trailingLossAmount)) && useTrailingLoss == true && trailingLossAmount > 0)
+				{
+					trailingLossHit = true;
+				}
+			
+			// Check if Daily PT or SL has been hit
+			if ((currentPnL >= maxDailyProfitAmount && maxDailyProfit == true) || (currentPnL <= -maxDailyLossAmount && maxDailyLoss == true))
+				{
+					okToTrade = false;
+					Print("daily limit hit, no new orders" + Time[0].ToString());
+				}
+				
 			if (ShowPanel)
 			{
 			Draw.TextFixed(this, "Label1", "Add Countdown: " + addCountdown + " MA Countdown: " + maOffsetCountdown + " Delay Countdown: " + entryDelayCounter + " Current PnL: $" + Math.Round(currentPnL, 2) + " Max Profit: $" + Math.Round(maxProfitLevel, 2) + " Trailing Loss Hit? " + trailingLossHit + " Longs Allowed = " + allowLongs + " Shorts Allowed = " + allowShorts + " Trades Paused = " + pauseTrades + " BE = " + gotoBE,
-        TextPosition.BottomLeft, Brushes.Black, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 12, Bold = true },
-        Brushes.Transparent, Brushes.DimGray, 100);
+      		TextPosition.BottomLeft, Brushes.Black, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 12, Bold = true },
+        	Brushes.Transparent, Brushes.DimGray, 100);
 			}
 			else if(ShowStatsPanel == true)
 			{
 				Draw.TextFixed(this, "Label1", "Current PnL: $" + Math.Round(currentPnL, 2) + " | Max Profit: $" + Math.Round(maxProfitLevel, 2) + " | Max Drawdown: $" + Math.Round(maxDrawdown, 2) + " | Trailing Loss Hit? " + trailingLossHit + " | Ok to Trade? " + okToTrade,
         		TextPosition.BottomLeft, Brushes.Black, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 12, Bold = true }, Brushes.Transparent, Brushes.DimGray, 100);
-			}
-			
+			}	
+				
 			currentTime = DateTime.Now;
 			
 			if((ToTime(currentTime) <= ToTime(startTime)) && TimeModeSelect == CustomEnumNamespaceLeonGrid.TimeMode.Restricted)
@@ -474,31 +518,25 @@ namespace NinjaTrader.NinjaScript.Strategies
 				RemoveDrawObject("Label4");
 			}
 			
-			currentPnL = SystemPerformance.AllTrades.TradesPerformance.Currency.CumProfit - previousRunningProfit; // update daily profit
+			if (dailyProfitHit == true && okToTrade == false)
+			{
+				Draw.TextFixed(this, "Label5", "Daily Profit Target Hit! :) Profit = $" + Math.Round(currentPnL, 2),
+				TextPosition.Center, Brushes.Green, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Green, Brushes.Black, 100);
+			}
+			else
+			{
+				RemoveDrawObject("Label5");
+			}
 			
-			// Store daily max profit level
-			if (currentPnL > maxProfitLevel)
-				{
-					maxProfitLevel = currentPnL;
-				}
-				
-			if (currentPnL < maxDrawdown)
-				{
-					maxDrawdown = currentPnL;
-				}
-				
-			// Check if trailing daily loss has hit
-			if ((maxProfitLevel > trailingLossAmount || maxDailyLoss == false) && (currentPnL < (maxProfitLevel - trailingLossAmount)) && useTrailingLoss == true && trailingLossAmount > 0)
-				{
-					trailingLossHit = true;
-				}
-			
-			// Check if Daily PT or SL has been hit
-			if ((currentPnL >= maxDailyProfitAmount && maxDailyProfit == true) || (currentPnL <= -maxDailyLossAmount && maxDailyLoss == true))
-				{
-					okToTrade = false;
-					Print("daily limit hit, no new orders" + Time[0].ToString());
-				}
+			if (dailyLossHit == true && okToTrade == false)
+			{
+				Draw.TextFixed(this, "Label6", "Daily Stop Loss Hit! :( Profit = -$" + Math.Abs(Math.Round(currentPnL, 2)),
+				TextPosition.Center, Brushes.Red, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Red, Brushes.Black, 100);
+			}
+			else
+			{
+				RemoveDrawObject("Label6");
+			}
 		}
 				
 				
