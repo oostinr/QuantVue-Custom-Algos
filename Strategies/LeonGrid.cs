@@ -47,6 +47,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				private DateTime		 					endTime 			= DateTime.Parse("16:00:00", System.Globalization.CultureInfo.InvariantCulture);
 				private DateTime 							lunchstartTime 		= DateTime.Parse("11:00:00", System.Globalization.CultureInfo.InvariantCulture);
 				private DateTime		 					lunchendTime 		= DateTime.Parse("12:30:00", System.Globalization.CultureInfo.InvariantCulture);
+				private DateTime							currentTime;
 				private double								longMid;
 				private double								shortMid;
 				private int									grid1Flip;
@@ -75,7 +76,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 				private bool								allowShorts						=true;
 				private bool								pauseTrades						=false;
 				private bool								gotoBE;
+				private double								maxDrawdown;
 
+				// In order to trim the indicator's label on the chart we need to override the ToString() method.
+				public override string DisplayName
+					{
+			            get { return Name ;}
+					}	
 
                 protected override void OnStateChange()
                 {
@@ -221,6 +228,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 							tradesCount++;
 						}
 						previousRunningProfit = SystemPerformance.AllTrades.TradesPerformance.Currency.CumProfit;
+						maxDrawdown = 0;
 					}
 			
 					if (BarsInProgress != 0) 
@@ -344,6 +352,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 						}
 						
 					}
+					
+					
 			
 			// Entries.
 
@@ -405,9 +415,46 @@ namespace NinjaTrader.NinjaScript.Strategies
 				}
 			}
 			
-			Draw.TextFixed(this, "Label1", "Add Countdown: " + addCountdown + " MA Countdown: " + maOffsetCountdown + " Delay Countdown: " + entryDelayCounter + " Current PnL: $" + Math.Round(currentPnL, 2) + " Max Profit: $" + Math.Round(maxProfitLevel, 2) + " Trailing Loss Hit? " + trailingLossHit + " Longs Allowed = " + allowLongs + " Shorts Allowed = " + allowShorts + " Trades Paused = " + pauseTrades + " BE = " + gotoBE,
-        TextPosition.BottomLeft, Brushes.Black, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 12, Bold = true },
-        Brushes.Transparent, Brushes.DimGray, 100);
+			if(showDebug == true)
+			{
+				Draw.TextFixed(this, "Label1", "Add Countdown: " + addCountdown + " MA Countdown: " + maOffsetCountdown + " Delay Countdown: " + entryDelayCounter + " Current PnL: $" + Math.Round(currentPnL, 2) + " Max Profit: $" + Math.Round(maxProfitLevel, 2) + " Trailing Loss Hit? " + trailingLossHit + " Longs Allowed = " + allowLongs + " Shorts Allowed = " + allowShorts + " Trades Paused = " + pauseTrades + " BE = " + gotoBE,
+       			TextPosition.BottomLeft, Brushes.Black, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 12, Bold = true }, Brushes.Transparent, Brushes.DimGray, 100);
+			}
+			else if(showStatistics == true)
+			{
+				Draw.TextFixed(this, "Label1", "Current PnL: $" + Math.Round(currentPnL, 2) + " | Max Profit: $" + Math.Round(maxProfitLevel, 2) + " | Max Drawdown: $" + Math.Round(maxDrawdown, 2) + " | Trailing Loss Hit? " + trailingLossHit + " | Ok to Trade? " + okToTrade,
+        		TextPosition.BottomLeft, Brushes.Black, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 12, Bold = true }, Brushes.Transparent, Brushes.DimGray, 100);
+			}
+			
+			currentTime = DateTime.Now;
+			
+			if((ToTime(currentTime) <= ToTime(startTime)) && TimeModeSelect == CustomEnumNamespaceLeonGrid.TimeMode.Restricted)
+			{
+				Draw.TextFixed(this, "Label2", "Trading Session Starts at " + startTime.ToString("t"),
+				TextPosition.Center, Brushes.Red, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Red, Brushes.Black, 100);
+			}
+			else
+			{
+				RemoveDrawObject("Label2");
+			}
+			if((ToTime(currentTime) >= ToTime(endTime)) && TimeModeSelect == CustomEnumNamespaceLeonGrid.TimeMode.Restricted)
+			{
+				Draw.TextFixed(this, "Label3", "Trading Session Ended",
+				TextPosition.Center, Brushes.Red, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Red, Brushes.Black, 100);
+			}
+			else
+			{
+				RemoveDrawObject("Label3");
+			}
+			if ((ToTime(currentTime) >= ToTime(lunchstartTime) && ToTime(currentTime) <= ToTime(lunchendTime)) && restrictLunch == true)
+			{
+				Draw.TextFixed(this, "Label4", "Lunch Trading Pause, Resume at " + lunchendTime.ToString("t"),
+				TextPosition.Center, Brushes.Red, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Red, Brushes.Black, 100);
+			}
+			else
+			{
+				RemoveDrawObject("Label4");
+			}
 			
 			currentPnL = SystemPerformance.AllTrades.TradesPerformance.Currency.CumProfit - previousRunningProfit; // update daily profit
 			
@@ -415,6 +462,11 @@ namespace NinjaTrader.NinjaScript.Strategies
 			if (currentPnL > maxProfitLevel)
 				{
 					maxProfitLevel = currentPnL;
+				}
+				
+			if (currentPnL < maxDrawdown)
+				{
+					maxDrawdown = currentPnL;
 				}
 				
 			// Check if trailing daily loss has hit
@@ -468,6 +520,19 @@ namespace NinjaTrader.NinjaScript.Strategies
 				btnStyle.Setters.Add(new Setter(System.Windows.Controls.Button.IsEnabledProperty, true));
 				btnStyle.Setters.Add(new Setter(System.Windows.Controls.Button.HorizontalAlignmentProperty, HorizontalAlignment.Center));
 				
+				Style btnStyle1 = new Style();
+		        btnStyle1.TargetType = typeof(System.Windows.Controls.Button);
+				
+		        btnStyle1.Setters.Add(new Setter(System.Windows.Controls.Button.FontSizeProperty, 11.0));
+		        btnStyle1.Setters.Add(new Setter(System.Windows.Controls.Button.FontFamilyProperty, new FontFamily("Arial")));
+		        btnStyle1.Setters.Add(new Setter(System.Windows.Controls.Button.FontWeightProperty, FontWeights.Bold));
+				btnStyle1.Setters.Add(new Setter(System.Windows.Controls.Button.MarginProperty, new Thickness(2, 0, 2, 0)));
+				btnStyle1.Setters.Add(new Setter(System.Windows.Controls.Button.PaddingProperty, new Thickness(4, 2, 4, 2)));
+				btnStyle1.Setters.Add(new Setter(System.Windows.Controls.Button.ForegroundProperty, Brushes.WhiteSmoke));
+				btnStyle1.Setters.Add(new Setter(System.Windows.Controls.Button.BackgroundProperty, Brushes.Lime));
+				btnStyle1.Setters.Add(new Setter(System.Windows.Controls.Button.IsEnabledProperty, true));
+				btnStyle1.Setters.Add(new Setter(System.Windows.Controls.Button.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+				
 		        // Instantiate the buttons
 		        btnAllowLongs = new System.Windows.Controls.Button();
 				btnAllowShorts = new System.Windows.Controls.Button();
@@ -485,7 +550,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		        // Set Button style            
 		        btnAllowLongs.Style = btnStyle;
 				btnAllowShorts.Style = btnStyle;
-				btnPauseTrades.Style = btnStyle;
+				btnPauseTrades.Style = btnStyle1;
 				btnBE.Style = btnStyle;
 				btnFlatten.Style = btnStyle;
 				
@@ -569,6 +634,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 					button.Content = "Trades Paused";
 					pauseTrades = true;
 					Print("Trades Paused" + Time[0].ToString());
+					button.Background = Brushes.Red;
+					ForceRefresh();
 					return;
 				}
 				else if (button == btnPauseTrades && button.Content == "Trades Paused")
@@ -576,6 +643,8 @@ namespace NinjaTrader.NinjaScript.Strategies
 					button.Content = "Trades Allowed";
 					pauseTrades = false;
 					Print("Trades Allowed" + Time[0].ToString());
+					button.Background = Brushes.Lime;
+					ForceRefresh();
 					return;
 				}
 			}
@@ -783,6 +852,16 @@ namespace NinjaTrader.NinjaScript.Strategies
 		[Range(1, int.MaxValue)]
 		[Display(Name="Order Stoploss", Order=1, GroupName="4. Stoploss Parameters")]
 		public int orderSL
+		{ get; set; }
+		
+		[NinjaScriptProperty]
+		[Display(Name="Show Statistics", Order=0, GroupName="5. Display Parameters")]
+		public bool showStatistics
+		{ get; set; }
+		
+		[NinjaScriptProperty]
+		[Display(Name="Show Debug", Order=1, GroupName="5. Display Parameters")]
+		public bool showDebug
 		{ get; set; }
 		
 		[NinjaScriptProperty]
