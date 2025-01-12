@@ -445,7 +445,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				}
 				
 			// Check if trailing daily loss has hit
-			if ((maxProfitLevel > trailingLossAmount || maxDailyLoss == false) && (currentPnL < (maxProfitLevel - trailingLossAmount)) && useTrailingLoss == true && trailingLossAmount > 0)
+			if ((maxProfitLevel > maxDailyProfitAmount || maxDailyLoss == false) && (currentPnL < (maxProfitLevel - trailingLossAmount)) && useTrailingLoss == true && trailingLossAmount > 0)
 				{
 					trailingLossHit = true;
 				}
@@ -524,7 +524,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				RemoveDrawObject("Label4");
 			}
 			
-			if (dailyProfitHit == true && okToTrade == false)
+			if (dailyProfitHit == true && okToTrade == false && useTrailingLoss == false)
 			{
 				Draw.TextFixed(this, "Label5", "Daily Profit Target Hit! :) Profit = $" + Math.Round(currentPnL, 2),
 				TextPosition.Center, Brushes.Green, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Green, Brushes.Black, 100);
@@ -544,6 +544,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 				RemoveDrawObject("Label6");
 			}
 			
+			if (trailingLossHit == true && okToTrade == false && useTrailingLoss == true)
+			{
+				Draw.TextFixed(this, "Label7", "Daily Trailing Loss Hit! :) Profit = $" + Math.Round(currentPnL, 2),
+				TextPosition.Center, Brushes.Green, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Green, Brushes.Black, 100);
+			}
+			else
+			{
+				RemoveDrawObject("Label7");
+			}
 		}
 				
 				
