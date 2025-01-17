@@ -44,7 +44,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				private int 									priorTradesCount 			= 0;
 				private double 									priorTradesCumProfit		= 0;
 				private double 									currentPnL;
-				private	CustomEnumNamespaceLeonGrid.TimeMode	TimeModeSelect		= CustomEnumNamespaceLeonGrid.TimeMode.Restricted;
+				private	CustomEnumNamespaceLeonGridV2.TimeMode	TimeModeSelect		= CustomEnumNamespaceLeonGridV2.TimeMode.Restricted;
 				private DateTime 							startTime 			= DateTime.Parse("09:40:00", System.Globalization.CultureInfo.InvariantCulture);
 				private DateTime		 					endTime 			= DateTime.Parse("16:00:00", System.Globalization.CultureInfo.InvariantCulture);
 				private DateTime 							lunchstartTime 		= DateTime.Parse("11:00:00", System.Globalization.CultureInfo.InvariantCulture);
@@ -389,7 +389,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			
 			// Entries.
 
-			if (((ToTime(Time[0]) >= ToTime(startTime) && ToTime(Time[0]) <= ToTime(endTime)) || TimeModeSelect == CustomEnumNamespaceLeonGrid.TimeMode.Unrestricted) && Position.MarketPosition == MarketPosition.Flat && entryDelayCounter == 0 && ((ToTime(Time[0]) <= ToTime(lunchstartTime) || ToTime(Time[0]) >= ToTime(lunchendTime)) || restrictLunch == false))
+			if (((ToTime(Time[0]) >= ToTime(startTime) && ToTime(Time[0]) <= ToTime(endTime)) || TimeModeSelect == CustomEnumNamespaceLeonGridV2.TimeMode.Unrestricted) && Position.MarketPosition == MarketPosition.Flat && entryDelayCounter == 0 && ((ToTime(Time[0]) <= ToTime(lunchstartTime) || ToTime(Time[0]) >= ToTime(lunchendTime)) || restrictLunch == false))
 			{
 				if (okToTrade == true && (useTrailingLoss == false || trailingLossHit == false) && pauseTrades == false)
 				{
@@ -506,7 +506,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 				
 			currentTime = DateTime.Now;
 			
-			if((ToTime(currentTime) <= ToTime(startTime)) && TimeModeSelect == CustomEnumNamespaceLeonGrid.TimeMode.Restricted)
+			if((ToTime(currentTime) <= ToTime(startTime)) && TimeModeSelect == CustomEnumNamespaceLeonGridV2.TimeMode.Restricted)
 			{
 				Draw.TextFixed(this, "Label2", "Trading Session Starts at " + startTime.ToString("t"),
 				TextPosition.Center, Brushes.Red, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Red, Brushes.Black, 100);
@@ -515,7 +515,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 			{
 				RemoveDrawObject("Label2");
 			}
-			if((ToTime(currentTime) >= ToTime(endTime)) && TimeModeSelect == CustomEnumNamespaceLeonGrid.TimeMode.Restricted)
+			if((ToTime(currentTime) >= ToTime(endTime)) && TimeModeSelect == CustomEnumNamespaceLeonGridV2.TimeMode.Restricted)
 			{
 				Draw.TextFixed(this, "Label3", "Trading Session Ended",
 				TextPosition.Center, Brushes.Red, new NinjaTrader.Gui.Tools.SimpleFont("Arial ", 10) { Size = 16, Bold = true }, Brushes.Red, Brushes.Black, 100);
@@ -774,7 +774,7 @@ namespace NinjaTrader.NinjaScript.Strategies
 		#region Properties
 		[NinjaScriptProperty]
 		[Display(ResourceType = typeof(Custom.Resource), Name = "Trading Hour Restriction", GroupName = "1. Time Parameters", Order = 0)]
-		public CustomEnumNamespaceLeonGrid.TimeMode TIMEMODESelect
+		public CustomEnumNamespaceLeonGridV2.TimeMode TIMEMODESelect
 		{
 			get { return TimeModeSelect; }
 			set { TimeModeSelect = value; }
